@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  config:
+    import: "optional:file:.env[.properties]"
+  application:
+    name: whaa-blog
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+whaa:
+  security:
+    default-admin-password: ${WHA_ADMIN_PASSWORD}
+  jwt:
+    secret: ${WHA_JWT_SECRET}
+    access-token-minutes: 120
+    refresh-token-days: 7
+  minio:
+    enabled: true
+    endpoint: http://localhost:9000
+    access-key: ${MINIO_ROOT_USER}
+    secret-key: ${MINIO_ROOT_PASSWORD}
+    bucket: whaa-blog
+    public-url: http://localhost:9000/whaa-blog
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

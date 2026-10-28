@@ -1,0 +1,85 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: #17253b;
+  background: #f4f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --admin-canvas: #f4f7fb;
+  --admin-ink: #17253b;
+  --admin-muted: #768396;
+  --admin-blue: #367ce0;
+  --el-color-primary: #367ce0;
+  --el-color-primary-light-3: #6ca0eb;
+  --el-color-primary-light-5: #9abcf2;
+  --el-color-primary-light-7: #c8dcf8;
+  --el-color-primary-light-8: #dce9fb;
+  --el-color-primary-light-9: #edf4fd;
+  --el-color-primary-dark-2: #2465c1;
+  --el-border-radius-base: 9px;
+  --el-border-radius-small: 7px;
+  --el-font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body, #app { min-width: 320px; min-height: 100%; margin: 0; }
+body { background: var(--admin-canvas); font-size: 14px; }
+button, input, textarea, select { font: inherit; }
+
+.admin-main .el-card {
+  --el-card-border-color: #e7ecf3;
+  border-radius: 16px;
+  box-shadow: 0 8px 26px rgba(26, 52, 85, 0.035);
+}
+.admin-main .el-card__body { padding: 22px; }
+.admin-main .el-table {
+  --el-table-border-color: #edf0f5;
+  --el-table-header-bg-color: #f7f9fc;
+  --el-table-header-text-color: #78869a;
+  --el-table-text-color: #2b3a50;
+  --el-table-row-hover-bg-color: #f4f8fe;
+  overflow: hidden;
+  border: 1px solid #e8edf4;
+  border-radius: 12px;
+  font-size: 13px;
+}
+.admin-main .el-table th.el-table__cell { height: 48px; font-size: 12px; font-weight: 650; }
+.admin-main .el-table td.el-table__cell { height: 54px; }
+.admin-main .el-table .cell { padding-right: 16px; padding-left: 16px; }
+.admin-main .el-input__wrapper,
+.admin-main .el-textarea__inner,
+.login-shell .el-input__wrapper {
+  box-shadow: 0 0 0 1px #dfe5ee inset;
+  transition: box-shadow 150ms ease, background 150ms ease;
+}
+.admin-main .el-input__wrapper:hover,
+.admin-main .el-textarea__inner:hover,
+.login-shell .el-input__wrapper:hover { box-shadow: 0 0 0 1px #bdcbe0 inset; }
+.admin-main .el-input__wrapper.is-focus,
+.admin-main .el-textarea__inner:focus,
+.login-shell .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px #78a6e7 inset, 0 0 0 3px rgba(54, 124, 224, 0.1);
+}
+.admin-main .el-button, .login-shell .el-button { font-weight: 600; }
+.admin-main .el-button--primary, .login-shell .el-button--primary {
+  box-shadow: 0 4px 10px rgba(54, 124, 224, 0.16);
+}
+.admin-main .el-dialog { overflow: hidden; border-radius: 16px; }
+.admin-main .el-dialog__header {
+  margin-right: 0;
+  padding: 22px 24px 14px;
+  border-bottom: 1px solid #eef1f5;
+}
+.admin-main .el-dialog__body { padding: 22px 24px; }
+.admin-main .el-dialog__footer {
+  padding: 14px 24px 22px;
+  border-top: 1px solid #eef1f5;
+}
+.admin-main .el-empty { padding: 32px 0; }
+
+@media (max-width: 640px) {
+  .admin-main .el-card__body { padding: 17px; }
+  .admin-main .el-table .cell { padding-right: 10px; padding-left: 10px; }
+}
