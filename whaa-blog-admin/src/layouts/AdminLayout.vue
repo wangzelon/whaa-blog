@@ -34,6 +34,7 @@ const navigation = [
       { path: '/posts', label: '文章', icon: Document },
       { path: '/pages', label: '页面', icon: Files },
       { path: '/comments', label: '评论', icon: ChatDotRound },
+      { path: '/chat', label: '站内私信', icon: ChatDotRound },
     ],
   },
   {
@@ -58,6 +59,7 @@ const pageInfo: Record<string, { title: string; description: string; section: st
   '/posts': { title: '文章管理', description: '编辑、整理并发布博客文章。', section: '内容管理' },
   '/pages': { title: '页面管理', description: '维护关于页和自定义内容页面。', section: '内容管理' },
   '/comments': { title: '评论审核', description: '查看并处理读者提交的评论。', section: '内容管理' },
+  '/chat': { title: '站内私信', description: '和读者或其他用户进行一对一实时交流。', section: '内容管理' },
   '/categories': { title: '分类管理', description: '整理文章所属的内容分类。', section: '站点运营' },
   '/tags': { title: '标签管理', description: '用标签为文章建立关联。', section: '站点运营' },
   '/links': { title: '友链管理', description: '维护博客的友情链接信息。', section: '站点运营' },
@@ -86,6 +88,10 @@ function openPublicSite() {
 
 function logout() {
   localStorage.removeItem('whaa_token')
+  localStorage.removeItem('whaa_role')
+  localStorage.removeItem('whaa_user_id')
+  localStorage.removeItem('whaa_username')
+  localStorage.removeItem('whaa_nickname')
   mobileNavOpen.value = false
   router.push('/login')
 }

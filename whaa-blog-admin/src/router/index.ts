@@ -16,6 +16,7 @@ const router = createRouter({
         { path: 'posts/edit/:id?', component: () => import('@/views/PostEditView.vue'), props: true },
         { path: 'pages', component: () => import('@/views/PagesView.vue') },
         { path: 'comments', component: () => import('@/views/CommentsView.vue') },
+        { path: 'chat', component: () => import('@/views/ChatView.vue') },
         { path: 'categories', component: () => import('@/views/CategoriesView.vue') },
         { path: 'tags', component: () => import('@/views/TagsView.vue') },
         { path: 'links', component: () => import('@/views/LinksView.vue') },
@@ -30,6 +31,12 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   if (to.meta.auth && !localStorage.getItem('whaa_token')) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.auth && localStorage.getItem('whaa_role') !== 'ADMIN') {
+    localStorage.removeItem('whaa_token')
+    localStorage.removeItem('whaa_role')
+    localStorage.removeItem('whaa_user_id')
     return '/login'
   }
   return true

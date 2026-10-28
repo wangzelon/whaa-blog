@@ -63,8 +63,14 @@ npm run dev
 ## 主要 API 前缀
 
 - 公开读接口：`GET /api/v1/**`
-- 登录：`POST /api/v1/auth/login`
+- 登录 / 注册：`POST /api/v1/auth/login`、`POST /api/v1/auth/register`
+- 私信 REST API：`/api/v1/chat/**`（需登录）
+- 私信 WebSocket：`/ws/chat`（需先通过已认证接口取得 30 秒有效、一次性连接票据；握手成功后才升级）
 - 管理端：`/api/v1/admin/**`（需 `Authorization: Bearer <token>`）
+
+新注册账号共享 `sys_user` 用户表，角色固定为 `USER`；后台账号角色为 `ADMIN`。普通用户可以和其他用户或管理员私聊，并且只能读取自己参与的会话。管理员可以查看所有会话；在未参与的用户私聊中只读，不能代替会话参与者发送消息，也不会改变他们的已读状态。消息为纯文本，长度最多 2000 字，前后台 Vite 开发代理都已转发 WebSocket 升级请求。
+
+私信使用 MySQL 持久化，登录频控和短时 WebSocket 票据使用 Redis。在线管理员会收到所有会话的新消息事件。WebSocket 在线会话目前保存在单个 API 实例的内存中；多实例部署时需要增加 Redis Pub/Sub 或消息代理做跨实例投递，并在反向代理中启用 `/ws/chat` 的 WebSocket Upgrade 转发。
 
 ## 数据库
 

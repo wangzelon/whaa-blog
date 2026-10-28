@@ -9,6 +9,7 @@ const router = createRouter({
       component: SiteLayout,
       children: [
         { path: '', name: 'home', component: () => import('@/views/HomeView.vue') },
+        { path: 'messages', name: 'messages', component: () => import('@/views/ChatView.vue'), meta: { auth: true } },
         { path: 'posts/:slug', name: 'post', component: () => import('@/views/PostView.vue') },
         { path: 'categories', name: 'categories', component: () => import('@/views/CategoriesView.vue') },
         { path: 'categories/:slug', name: 'category', component: () => import('@/views/CategoryPostsView.vue') },
@@ -25,9 +26,18 @@ const router = createRouter({
         { path: 'search', name: 'search', component: () => import('@/views/SearchView.vue') },
       ],
     },
+    { path: '/login', name: 'login', component: () => import('@/views/AuthView.vue') },
+    { path: '/register', name: 'register', component: () => import('@/views/AuthView.vue') },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
   ],
   scrollBehavior: () => ({ top: 0 }),
+})
+
+router.beforeEach((to) => {
+  if (to.meta.auth && (!localStorage.getItem('whaa_token') || !localStorage.getItem('whaa_user'))) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  return true
 })
 
 export default router

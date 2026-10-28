@@ -12,8 +12,19 @@ const loading = ref(false)
 async function login() {
   loading.value = true
   try {
-    const data = await apiPost<{ accessToken: string }>('/auth/login', form.value)
+    const data = await apiPost<{ accessToken: string; userId: number; username: string; nickname: string; role: string }>('/auth/login', form.value)
+    if (data.role !== 'ADMIN') {
+      localStorage.removeItem('whaa_token')
+      localStorage.removeItem('whaa_role')
+      localStorage.removeItem('whaa_user_id')
+      ElMessage.error('该账号没有管理后台权限。')
+      return
+    }
     localStorage.setItem('whaa_token', data.accessToken)
+    localStorage.setItem('whaa_role', data.role)
+    localStorage.setItem('whaa_user_id', String(data.userId))
+    localStorage.setItem('whaa_username', data.username)
+    localStorage.setItem('whaa_nickname', data.nickname || data.username)
     router.push('/dashboard')
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '登录失败')

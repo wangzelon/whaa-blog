@@ -7,6 +7,9 @@ export default defineConfig({
   resolve: { alias: { '@': path.resolve(__dirname, 'src') } },
   server: {
     port: 5174,
-    proxy: { '/api': 'http://localhost:8080' },
+    proxy: {
+      '/api': 'http://localhost:8080',
+      '/ws': { target: 'http://localhost:8080', ws: true },
+    },
   },
 })

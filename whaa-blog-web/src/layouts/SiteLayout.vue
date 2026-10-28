@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useSiteStore } from '@/stores/site'
+import { clearAuth, currentUser } from '@/stores/auth'
 import ClickBubbles from '@/components/ClickBubbles.vue'
 
 const site = useSiteStore()
 const route = useRoute()
+const router = useRouter()
 
 onMounted(() => site.load())
 
@@ -37,12 +39,18 @@ const pageTitle = computed(() => {
     '/search': '站内搜索',
     '/about/site': '关于站点',
     '/about': '关于我',
+    '/messages': '站内私信',
   }
   return current?.label || extra[route.path] || '页面'
 })
 
 function isActive(path: string) {
   return path === '/' ? route.path === '/' : route.path === path || route.path.startsWith(`${path}/`)
+}
+
+function logout() {
+  clearAuth()
+  router.push('/')
 }
 
 function navMark(label: string) {
@@ -73,13 +81,24 @@ function toggleTheme() {
         </nav>
 
         <div class="header-actions">
+          <RouterLink v-if="currentUser" class="auth-nav-link" to="/messages">消息</RouterLink>
+          <template v-else>
+            <RouterLink class="auth-nav-link" to="/login">登录</RouterLink>
+            <RouterLink class="auth-nav-link auth-nav-primary" to="/register">注册</RouterLink>
+          </template>
           <RouterLink class="icon-action" to="/search" aria-label="搜索" title="搜索">⌕</RouterLink>
           <button class="icon-action" type="button" aria-label="切换主题" title="切换主题" @click="toggleTheme">◐</button>
+          <button v-if="currentUser" class="logout-link" type="button" @click="logout">退出</button>
         </div>
       </div>
       <nav class="mobile-nav" aria-label="移动端主导航">
         <RouterLink v-for="item in nav" :key="item.path" :to="item.path" :class="{ active: isActive(item.path) }">{{ item.label }}</RouterLink>
         <RouterLink to="/search" :class="{ active: route.path === '/search' }">搜索</RouterLink>
+        <RouterLink v-if="currentUser" to="/messages" :class="{ active: route.path === '/messages' }">消息</RouterLink>
+        <template v-else>
+          <RouterLink to="/login" :class="{ active: route.path === '/login' }">登录</RouterLink>
+          <RouterLink to="/register" :class="{ active: route.path === '/register' }">注册</RouterLink>
+        </template>
       </nav>
     </header>
 

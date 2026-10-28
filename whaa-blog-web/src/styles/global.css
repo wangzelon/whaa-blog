@@ -78,6 +78,11 @@ img { max-width: 100%; }
 .header-actions { display: flex; align-items: center; gap: 8px; }
 .icon-action { width: 36px; height: 36px; display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 11px; color: var(--muted); background: var(--surface); font-size: 20px; line-height: 1; cursor: pointer; }
 .icon-action:hover { color: var(--accent-strong); border-color: var(--accent-border); background: var(--accent-soft); text-decoration: none; }
+.auth-nav-link { padding: 8px 10px; border-radius: 9px; color: var(--muted); font-size: 11px; font-weight: 650; white-space: nowrap; }
+.auth-nav-link:hover { color: var(--accent-strong); background: var(--accent-soft); text-decoration: none; }
+.auth-nav-primary { color: var(--accent-strong); border: 1px solid var(--accent-border); background: var(--accent-soft); }
+.logout-link { padding: 6px 3px; border: 0; color: var(--muted); background: transparent; font-size: 10px; cursor: pointer; }
+.logout-link:hover { color: #c84b54; }
 .mobile-nav { display: none; }
 
 .hero { position: relative; width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: 51px 20px 33px; text-align: center; }
