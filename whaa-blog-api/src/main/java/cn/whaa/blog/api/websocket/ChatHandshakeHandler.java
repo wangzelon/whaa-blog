@@ -5,6 +5,7 @@ import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +22,11 @@ public class ChatHandshakeHandler extends DefaultHandshakeHandler {
 
     @Override
     protected String selectProtocol(List<String> requestedProtocols, WebSocketHandler wsHandler) {
-        return requestedProtocols.contains(CHAT_PROTOCOL) ? CHAT_PROTOCOL : null;
+        return requestedProtocols.stream()
+                .flatMap(protocols -> Arrays.stream(protocols.split(",")))
+                .map(String::trim)
+                .filter(CHAT_PROTOCOL::equals)
+                .findFirst()
+                .orElse(null);
     }
 }

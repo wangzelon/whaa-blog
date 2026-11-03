@@ -16,6 +16,7 @@ import {
   Picture,
   PriceTag,
   Setting,
+  User,
   View,
 } from '@element-plus/icons-vue'
 
@@ -35,6 +36,7 @@ const navigation = [
       { path: '/pages', label: '页面', icon: Files },
       { path: '/comments', label: '评论', icon: ChatDotRound },
       { path: '/chat', label: '站内私信', icon: ChatDotRound },
+      { path: '/users', label: '用户管理', icon: User },
     ],
   },
   {
@@ -60,6 +62,7 @@ const pageInfo: Record<string, { title: string; description: string; section: st
   '/pages': { title: '页面管理', description: '维护关于页和自定义内容页面。', section: '内容管理' },
   '/comments': { title: '评论审核', description: '查看并处理读者提交的评论。', section: '内容管理' },
   '/chat': { title: '站内私信', description: '和读者或其他用户进行一对一实时交流。', section: '内容管理' },
+  '/users': { title: '用户管理', description: '管理注册用户账号、密码与访问状态。', section: '内容管理' },
   '/categories': { title: '分类管理', description: '整理文章所属的内容分类。', section: '站点运营' },
   '/tags': { title: '标签管理', description: '用标签为文章建立关联。', section: '站点运营' },
   '/links': { title: '友链管理', description: '维护博客的友情链接信息。', section: '站点运营' },

@@ -7,11 +7,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @ComponentScan(basePackages = "cn.whaa.blog")
 @EnableConfigurationProperties({JwtProperties.class, MinioProperties.class})
 @EnableAsync
+@EnableScheduling
 public class WhaaBlogApplication {
 
     public static void main(String[] args) {

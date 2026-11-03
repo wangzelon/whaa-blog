@@ -8,30 +8,121 @@ services:
       MYSQL_USER: whaa
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in the root .env file}
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - whaa_mysql_data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     container_name: whaa-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
 
   minio:
-    image: minio/minio:latest
+    image: rustfs/rustfs:1.0.4
     container_name: whaa-minio
+    environment:
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_ACCESS_KEY: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in the root .env file}
+      RUSTFS_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in the root .env file}
+      RUSTFS_OBS_LOGGER_LEVEL: info
+    command: ["/data"]
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - whaa_rustfs_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:9000/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+
+  minio-init:
+    image: rustfs/rc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["sh", "-ec"]
+    command:
+      - |
+        rc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        rc bucket create --ignore-existing local/whaa-blog
+        rc anonymous set download local/whaa-blog
+        rc bucket create --ignore-existing local/whaa-chat-private
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in the root .env file}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in the root .env file}
-    command: server /data --console-address ":9001"
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: whaa-blog-api/Dockerfile
+    container_name: whaa-api
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/whaa_blog?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in the root .env file}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      WHA_ADMIN_PASSWORD: ${WHA_ADMIN_PASSWORD:?Set WHA_ADMIN_PASSWORD in the root .env file}
+      WHA_JWT_SECRET: ${WHA_JWT_SECRET:?Set WHA_JWT_SECRET in the root .env file}
+      WHA_MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in the root .env file}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in the root .env file}
     ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - whaa_minio_data:/data
+      - "127.0.0.1:${API_PORT:-18080}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./whaa-blog-web
+      dockerfile: Dockerfile
+    container_name: whaa-web
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8081}:80"
+      - "[::1]:${WEB_PORT:-8081}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: ./whaa-blog-admin
+      dockerfile: Dockerfile
+    container_name: whaa-admin
+    ports:
+      - "127.0.0.1:${ADMIN_PORT:-8082}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
 
 volumes:
   whaa_mysql_data:
-  whaa_minio_data:
+  whaa_rustfs_data:

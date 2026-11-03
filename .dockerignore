@@ -1,0 +1,13 @@
+.git
+.codex
+.agents
+.env
+.env.*
+**/node_modules
+**/dist
+**/target
+**/.idea
+**/*.log
+whaa-blog-admin
+whaa-blog-web
+docs

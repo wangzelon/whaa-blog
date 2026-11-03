@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @Slf4j
 @RestControllerAdvice
@@ -25,6 +26,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.OK)
     public Result<Void> handleValidation(Exception ex) {
         return Result.fail(ResultCode.BAD_REQUEST.getCode(), "validation failed");
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public Result<Void> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        return Result.fail(ResultCode.BAD_REQUEST.getCode(), "each attachment must be 20 MB or smaller");
     }
 
     @ExceptionHandler(Exception.class)

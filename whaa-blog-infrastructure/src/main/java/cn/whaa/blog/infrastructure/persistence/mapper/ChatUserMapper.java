@@ -14,6 +14,7 @@ public interface ChatUserMapper {
             SELECT id, username, nickname, role
             FROM sys_user
             WHERE id <> #{userId}
+              AND status = 'ACTIVE'
               AND (#{query} = '' OR username LIKE CONCAT('%', #{query}, '%')
                    OR nickname LIKE CONCAT('%', #{query}, '%'))
             ORDER BY CASE role WHEN 'ADMIN' THEN 0 ELSE 1 END, nickname, username

@@ -18,6 +18,9 @@ public class SysUserEntity {
     private String email;
     private String avatar;
     private String role;
+    private String status;
+    private Long tokenVersion;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime deletedAt;
 }

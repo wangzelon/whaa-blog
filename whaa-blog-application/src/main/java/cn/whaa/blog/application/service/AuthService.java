@@ -3,6 +3,7 @@ package cn.whaa.blog.application.service;
 import cn.whaa.blog.common.exception.BizException;
 import cn.whaa.blog.common.result.ResultCode;
 import cn.whaa.blog.domain.enums.UserRole;
+import cn.whaa.blog.domain.enums.UserStatus;
 import cn.whaa.blog.infrastructure.cache.CacheService;
 import cn.whaa.blog.infrastructure.persistence.entity.SysUserEntity;
 import cn.whaa.blog.infrastructure.persistence.mapper.SysUserMapper;
@@ -34,7 +35,8 @@ public class AuthService {
         }
         String normalizedUsername = username == null ? "" : username.trim();
         SysUserEntity user = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUserEntity>().eq(SysUserEntity::getUsername, normalizedUsername));
-        if (user == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+        if (user == null || !UserStatus.ACTIVE.name().equals(user.getStatus())
+                || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new BizException(ResultCode.UNAUTHORIZED, "invalid credentials");
         }
         return issueTokens(user);
@@ -53,9 +55,9 @@ public class AuthService {
         if ("admin".equalsIgnoreCase(normalizedUsername)) {
             throw new BizException(ResultCode.BAD_REQUEST, "username is reserved");
         }
-        if (password == null || password.length() < 12
+        if (password == null || password.length() < 8
                 || password.getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new BizException(ResultCode.BAD_REQUEST, "password must be at least 12 characters and no more than 72 UTF-8 bytes");
+            throw new BizException(ResultCode.BAD_REQUEST, "password must be at least 8 characters and no more than 72 UTF-8 bytes");
         }
         if (sysUserMapper.selectCount(new LambdaQueryWrapper<SysUserEntity>()
                 .eq(SysUserEntity::getUsername, normalizedUsername)) > 0) {
@@ -72,6 +74,8 @@ public class AuthService {
         user.setNickname(normalizedNickname);
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setRole(UserRole.USER.name());
+        user.setStatus(UserStatus.ACTIVE.name());
+        user.setTokenVersion(0L);
         try {
             sysUserMapper.insert(user);
         } catch (DuplicateKeyException exception) {
@@ -87,15 +91,18 @@ public class AuthService {
         }
         Long userId = Long.parseLong(claims.getSubject());
         SysUserEntity user = sysUserMapper.selectById(userId);
-        if (user == null) {
+        if (user == null || !UserStatus.ACTIVE.name().equals(user.getStatus())
+                || tokenVersion(claims) != (user.getTokenVersion() == null ? 0L : user.getTokenVersion())) {
             throw new BizException(ResultCode.UNAUTHORIZED);
         }
         return issueTokens(user);
     }
 
     private TokenPair issueTokens(SysUserEntity user) {
-        String access = jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole());
-        String refresh = jwtTokenProvider.createRefreshToken(user.getId());
+        long tokenVersion = user.getTokenVersion() == null ? 0L : user.getTokenVersion();
+        String access = jwtTokenProvider.createAccessToken(
+                user.getId(), user.getUsername(), user.getRole(), tokenVersion);
+        String refresh = jwtTokenProvider.createRefreshToken(user.getId(), tokenVersion);
         TokenPair pair = new TokenPair();
         pair.setAccessToken(access);
         pair.setRefreshToken(refresh);
@@ -104,6 +111,11 @@ public class AuthService {
         pair.setNickname(user.getNickname());
         pair.setRole(user.getRole());
         return pair;
+    }
+
+    private long tokenVersion(Claims claims) {
+        Object value = claims.get("tokenVersion");
+        return value instanceof Number number ? number.longValue() : 0L;
     }
 
     @Data

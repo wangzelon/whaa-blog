@@ -26,6 +26,9 @@ public interface ChatConversationMapper extends BaseMapper<ChatConversationEntit
     @Update("UPDATE chat_conversation SET last_message_id = #{messageId}, updated_at = CURRENT_TIMESTAMP WHERE id = #{conversationId}")
     int updateLastMessage(@Param("conversationId") Long conversationId, @Param("messageId") Long messageId);
 
+    @Update("UPDATE chat_conversation SET last_message_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = #{conversationId}")
+    int clearLastMessage(@Param("conversationId") Long conversationId);
+
     @Select("""
             SELECT c.id AS id,
                    CASE WHEN c.low_user_id = #{userId} THEN high_user.id
@@ -44,7 +47,9 @@ public interface ChatConversationMapper extends BaseMapper<ChatConversationEntit
                    high_user.username AS participantTwoUsername,
                    high_user.nickname AS participantTwoNickname,
                    high_user.role AS participantTwoRole,
-                   lm.content AS lastMessage,
+                   CASE WHEN lm.id IS NULL THEN NULL
+                        WHEN TRIM(lm.content) = '' THEN '发送了附件'
+                        ELSE lm.content END AS lastMessage,
                    lm.created_at AS lastMessageAt,
                    CASE WHEN #{isAdmin} = TRUE
                              AND c.low_user_id <> #{userId} AND c.high_user_id <> #{userId} THEN 0
@@ -81,7 +86,9 @@ public interface ChatConversationMapper extends BaseMapper<ChatConversationEntit
                    high_user.username AS participantTwoUsername,
                    high_user.nickname AS participantTwoNickname,
                    high_user.role AS participantTwoRole,
-                   lm.content AS lastMessage,
+                   CASE WHEN lm.id IS NULL THEN NULL
+                        WHEN TRIM(lm.content) = '' THEN '发送了附件'
+                        ELSE lm.content END AS lastMessage,
                    lm.created_at AS lastMessageAt,
                    CASE WHEN #{isAdmin} = TRUE
                              AND c.low_user_id <> #{userId} AND c.high_user_id <> #{userId} THEN 0

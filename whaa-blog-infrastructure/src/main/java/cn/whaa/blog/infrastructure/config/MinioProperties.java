@@ -11,5 +11,6 @@ public class MinioProperties {
     private String accessKey;
     private String secretKey;
     private String bucket = "whaa-blog";
+    private String chatBucket = "whaa-chat-private";
     private String publicUrl = "http://localhost:9000/whaa-blog";
 }

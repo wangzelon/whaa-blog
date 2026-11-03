@@ -15,4 +15,7 @@ public interface ChatReadStateMapper {
     int markRead(@Param("conversationId") Long conversationId,
                  @Param("userId") Long userId,
                  @Param("messageId") Long messageId);
+
+    @Update("UPDATE chat_read_state SET last_read_message_id = 0, updated_at = CURRENT_TIMESTAMP WHERE conversation_id = #{conversationId}")
+    int resetForClearedConversation(@Param("conversationId") Long conversationId);
 }

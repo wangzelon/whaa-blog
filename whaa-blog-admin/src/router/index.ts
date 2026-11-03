@@ -17,6 +17,7 @@ const router = createRouter({
         { path: 'pages', component: () => import('@/views/PagesView.vue') },
         { path: 'comments', component: () => import('@/views/CommentsView.vue') },
         { path: 'chat', component: () => import('@/views/ChatView.vue') },
+        { path: 'users', component: () => import('@/views/UsersView.vue') },
         { path: 'categories', component: () => import('@/views/CategoriesView.vue') },
         { path: 'tags', component: () => import('@/views/TagsView.vue') },
         { path: 'links', component: () => import('@/views/LinksView.vue') },

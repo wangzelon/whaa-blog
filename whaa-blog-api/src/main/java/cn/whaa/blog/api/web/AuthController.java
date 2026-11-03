@@ -53,7 +53,7 @@ public class AuthController {
         @Size(min = 3, max = 32)
         private String username;
         @NotBlank
-        @Size(min = 12, max = 72)
+        @Size(min = 8, max = 72)
         private String password;
         @Size(max = 64)
         private String nickname;

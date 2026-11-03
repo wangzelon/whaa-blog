@@ -58,7 +58,7 @@ async function submit() {
         </label>
         <label>
           <span>密码</span>
-          <input v-model="form.password" required :minlength="isRegister ? 12 : 1" :maxlength="isRegister ? 72 : 128" type="password" :autocomplete="isRegister ? 'new-password' : 'current-password'" :placeholder="isRegister ? '至少 12 位' : '输入你的密码'" />
+          <input v-model="form.password" required :minlength="isRegister ? 8 : 1" :maxlength="isRegister ? 72 : 128" type="password" :autocomplete="isRegister ? 'new-password' : 'current-password'" :placeholder="isRegister ? '至少 8 位' : '输入你的密码'" />
         </label>
         <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
         <button class="auth-submit" type="submit" :disabled="loading">

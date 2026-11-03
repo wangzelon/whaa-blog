@@ -14,6 +14,8 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.util.Map;
 import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -33,6 +35,38 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         sessionsByUser.computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet()).add(session);
     }
 
+    public void disconnectUser(Long userId) {
+        Set<WebSocketSession> sessions = sessionsByUser.remove(userId);
+        if (sessions == null) return;
+        for (WebSocketSession session : sessions) {
+            try {
+                if (session.isOpen()) session.close(CloseStatus.POLICY_VIOLATION);
+            } catch (Exception exception) {
+                log.debug("Could not close a disabled user's WebSocket session");
+            }
+        }
+    }
+
+    public void broadcastConversationCleared(Long conversationId) {
+        try {
+            String event = objectMapper.writeValueAsString(
+                    Map.of("type", "CONVERSATION_CLEARED", "conversationId", conversationId));
+            Set<Long> participantIds = new HashSet<>(chatService.participants(conversationId));
+            for (Long participantId : participantIds) {
+                broadcast(participantId, event);
+            }
+            for (Map.Entry<Long, Set<WebSocketSession>> entry : sessionsByUser.entrySet()) {
+                if (participantIds.contains(entry.getKey())) continue;
+                boolean adminConnected = entry.getValue().stream()
+                        .anyMatch(candidate -> Boolean.TRUE.equals(candidate.getAttributes()
+                                .get(ChatHandshakeInterceptor.ADMIN_ATTRIBUTE)));
+                if (adminConnected) broadcast(entry.getKey(), event);
+            }
+        } catch (Exception exception) {
+            log.warn("Could not broadcast a cleared conversation event: {}", exception.getClass().getSimpleName());
+        }
+    }
+
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         if (message.getPayloadLength() > MAX_FRAME_BYTES) {
@@ -47,10 +81,26 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 sendError(session, "invalid message");
                 return;
             }
+            JsonNode requestedAttachmentIds = body.path("attachmentIds");
+            if (!requestedAttachmentIds.isMissingNode() && !requestedAttachmentIds.isArray()) {
+                sendError(session, "invalid attachments");
+                return;
+            }
+            List<Long> attachmentIds = new ArrayList<>();
+            if (requestedAttachmentIds.isArray()) {
+                for (JsonNode attachmentId : requestedAttachmentIds) {
+                    if (!attachmentId.canConvertToLong()) {
+                        sendError(session, "invalid attachments");
+                        return;
+                    }
+                    attachmentIds.add(attachmentId.asLong());
+                }
+            }
             var savedMessage = chatService.sendMessage(
                     senderId,
                     body.path("conversationId").asLong(),
-                    body.path("content").asText("")
+                    body.path("content").asText(""),
+                    attachmentIds
             );
             String event = objectMapper.writeValueAsString(Map.of("type", "MESSAGE", "message", savedMessage));
             Set<Long> deliveredTo = new HashSet<>(chatService.participants(savedMessage.getConversationId()));

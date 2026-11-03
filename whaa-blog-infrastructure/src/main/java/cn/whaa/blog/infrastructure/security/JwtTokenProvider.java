@@ -20,24 +20,26 @@ public class JwtTokenProvider {
 
     private final JwtProperties jwtProperties;
 
-    public String createAccessToken(Long userId, String username, String role) {
+    public String createAccessToken(Long userId, String username, String role, long tokenVersion) {
         Instant now = Instant.now();
         Instant expiry = now.plus(jwtProperties.getAccessTokenMinutes(), ChronoUnit.MINUTES);
         return Jwts.builder()
                 .subject(String.valueOf(userId))
-                .claims(Map.of("username", username, "role", role, "type", "access"))
+                .claims(Map.of("username", username, "role", role,
+                        "type", "access", "tokenVersion", tokenVersion))
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
                 .signWith(signingKey())
                 .compact();
     }
 
-    public String createRefreshToken(Long userId) {
+    public String createRefreshToken(Long userId, long tokenVersion) {
         Instant now = Instant.now();
         Instant expiry = now.plus(jwtProperties.getRefreshTokenDays(), ChronoUnit.DAYS);
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("type", "refresh")
+                .claim("tokenVersion", tokenVersion)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
                 .signWith(signingKey())
