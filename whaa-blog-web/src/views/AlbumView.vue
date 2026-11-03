@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, nextTick, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import Viewer from 'viewerjs'
+import 'viewerjs/dist/viewer.css'
 import { getData } from '@/api/client'
 
 interface AlbumPhoto {
@@ -12,6 +14,8 @@ interface AlbumPhoto {
 
 const route = useRoute()
 const detail = ref<{ album: any; photos: AlbumPhoto[] }>()
+const photoGallery = ref<HTMLElement | null>(null)
+let viewer: Viewer | null = null
 
 function photoName(photo: AlbumPhoto, index: number) {
   return photo.originalName?.trim() || photo.caption?.trim() || `照片 ${String(index + 1).padStart(2, '0')}`
@@ -19,7 +23,29 @@ function photoName(photo: AlbumPhoto, index: number) {
 
 onMounted(async () => {
   detail.value = await getData(`/albums/${route.params.slug}`)
+  await nextTick()
+
+  if (photoGallery.value) {
+    viewer = new Viewer(photoGallery.value, {
+      loop: true,
+      keyboard: true,
+      navigation: true,
+      navbar: true,
+      toolbar: {
+        zoomIn: 1,
+        zoomOut: 1,
+        oneToOne: 1,
+        reset: 1,
+        prev: 1,
+        next: 1,
+        rotateLeft: 1,
+        rotateRight: 1,
+      },
+    })
+  }
 })
+
+onBeforeUnmount(() => viewer?.destroy())
 </script>
 
 <template>
@@ -29,10 +55,10 @@ onMounted(async () => {
       <h1>{{ detail.album.title }}</h1>
       <p v-if="detail.album.description" class="album-description">{{ detail.album.description }}</p>
     </header>
-    <div class="photos">
+    <div ref="photoGallery" class="photos">
       <figure v-for="(photo, index) in detail.photos" :key="photo.id" class="photo-card">
         <div class="photo-frame">
-          <img :src="photo.url" :alt="photoName(photo, index)" loading="lazy" />
+          <img :src="photo.url" :alt="photoName(photo, index)" :title="`${photoName(photo, index)} · 点击放大查看`" loading="lazy" />
           <span class="photo-index" :aria-label="`第 ${index + 1} 张照片`">{{ String(index + 1).padStart(2, '0') }}</span>
         </div>
         <figcaption class="photo-info">
@@ -57,7 +83,7 @@ onMounted(async () => {
 }
 .photo-card { min-width: 0; margin: 0; padding: 10px; overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--card, var(--surface)); box-shadow: 0 6px 20px rgba(24, 39, 61, .04); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .photo-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); box-shadow: 0 12px 28px rgba(24, 39, 61, .09); }
-.photo-frame { position: relative; overflow: hidden; aspect-ratio: 4 / 3; border-radius: 10px; background: var(--surface, #f2f4f7); }
+.photo-frame { position: relative; overflow: hidden; aspect-ratio: 4 / 3; border-radius: 10px; background: var(--surface, #f2f4f7); cursor: zoom-in; }
 .photo-frame img {
   display: block;
   width: 100%;
