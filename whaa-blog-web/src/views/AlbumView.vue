@@ -3,8 +3,19 @@ import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { getData } from '@/api/client'
 
+interface AlbumPhoto {
+  id: number
+  url: string
+  caption?: string
+  originalName?: string
+}
+
 const route = useRoute()
-const detail = ref<{ album: any; photos: any[] }>()
+const detail = ref<{ album: any; photos: AlbumPhoto[] }>()
+
+function photoName(photo: AlbumPhoto, index: number) {
+  return photo.originalName?.trim() || photo.caption?.trim() || `照片 ${String(index + 1).padStart(2, '0')}`
+}
 
 onMounted(async () => {
   detail.value = await getData(`/albums/${route.params.slug}`)
@@ -13,29 +24,54 @@ onMounted(async () => {
 
 <template>
   <section v-if="detail">
-    <h1>{{ detail.album.title }}</h1>
-    <p>{{ detail.album.description }}</p>
+    <header class="album-heading">
+      <p class="album-eyebrow">PHOTO ALBUM <span>{{ detail.photos.length }} 张照片</span></p>
+      <h1>{{ detail.album.title }}</h1>
+      <p v-if="detail.album.description" class="album-description">{{ detail.album.description }}</p>
+    </header>
     <div class="photos">
-      <figure v-for="p in detail.photos" :key="p.id">
-        <img :src="p.url" :alt="p.caption || ''" />
-        <figcaption v-if="p.caption">{{ p.caption }}</figcaption>
+      <figure v-for="(photo, index) in detail.photos" :key="photo.id" class="photo-card">
+        <div class="photo-frame">
+          <img :src="photo.url" :alt="photoName(photo, index)" loading="lazy" />
+          <span class="photo-index" :aria-label="`第 ${index + 1} 张照片`">{{ String(index + 1).padStart(2, '0') }}</span>
+        </div>
+        <figcaption class="photo-info">
+          <strong class="photo-name" :title="photoName(photo, index)">{{ photoName(photo, index) }}</strong>
+          <span v-if="photo.caption && photo.originalName && photo.caption !== photo.originalName" class="photo-caption">{{ photo.caption }}</span>
+        </figcaption>
       </figure>
     </div>
   </section>
 </template>
 
 <style scoped>
+.album-heading { margin: 0 0 28px; }
+.album-eyebrow { display: flex; align-items: center; gap: 12px; margin: 0 0 9px; color: var(--accent); font-size: 10px; font-weight: 750; letter-spacing: .14em; }
+.album-eyebrow span { padding-left: 12px; color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: 0; border-left: 1px solid var(--border); }
+.album-heading h1 { margin: 0; color: var(--text); font-size: clamp(26px, 4vw, 38px); letter-spacing: -.035em; }
+.album-description { max-width: 700px; margin: 10px 0 0; color: var(--muted); line-height: 1.75; }
 .photos {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: clamp(12px, 2vw, 20px);
 }
-img {
+.photo-card { min-width: 0; margin: 0; padding: 10px; overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--card, var(--surface)); box-shadow: 0 6px 20px rgba(24, 39, 61, .04); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.photo-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); box-shadow: 0 12px 28px rgba(24, 39, 61, .09); }
+.photo-frame { position: relative; overflow: hidden; aspect-ratio: 4 / 3; border-radius: 10px; background: var(--surface, #f2f4f7); }
+.photo-frame img {
+  display: block;
   width: 100%;
-  border-radius: 8px;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .3s ease;
 }
-figcaption {
-  font-size: 0.85rem;
-  color: var(--muted);
+.photo-card:hover .photo-frame img { transform: scale(1.025); }
+.photo-index { position: absolute; top: 9px; left: 9px; min-width: 32px; padding: 5px 7px; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-align: center; border: 1px solid rgba(255,255,255,.35); border-radius: 7px; background: rgba(20, 31, 46, .68); backdrop-filter: blur(8px); }
+.photo-info { display: flex; flex-direction: column; gap: 5px; padding: 11px 3px 3px; }
+.photo-name { display: -webkit-box; overflow: hidden; color: var(--text); font-size: 13px; font-weight: 650; line-height: 1.45; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.photo-caption { overflow: hidden; color: var(--muted); font-size: 11px; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  .photo-card, .photo-frame img { transition: none; }
+  .photo-card:hover { transform: none; }
 }
 </style>

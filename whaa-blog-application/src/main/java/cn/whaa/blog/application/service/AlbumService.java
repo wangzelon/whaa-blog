@@ -5,8 +5,10 @@ import cn.whaa.blog.common.result.ResultCode;
 import cn.whaa.blog.common.util.SlugUtils;
 import cn.whaa.blog.infrastructure.persistence.entity.AlbumEntity;
 import cn.whaa.blog.infrastructure.persistence.entity.AlbumPhotoEntity;
+import cn.whaa.blog.infrastructure.persistence.entity.MediaEntity;
 import cn.whaa.blog.infrastructure.persistence.mapper.AlbumMapper;
 import cn.whaa.blog.infrastructure.persistence.mapper.AlbumPhotoMapper;
+import cn.whaa.blog.infrastructure.persistence.mapper.MediaMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +27,7 @@ public class AlbumService {
 
     private final AlbumMapper albumMapper;
     private final AlbumPhotoMapper albumPhotoMapper;
+    private final MediaMapper mediaMapper;
 
     public List<AlbumEntity> listPublic() {
         return albumMapper.selectList(new LambdaQueryWrapper<AlbumEntity>()
@@ -54,10 +59,40 @@ public class AlbumService {
     private AlbumDetailVO toDetail(AlbumEntity album) {
         AlbumDetailVO vo = new AlbumDetailVO();
         vo.setAlbum(album);
-        vo.setPhotos(albumPhotoMapper.selectList(new LambdaQueryWrapper<AlbumPhotoEntity>()
+        List<AlbumPhotoEntity> photos = albumPhotoMapper.selectList(new LambdaQueryWrapper<AlbumPhotoEntity>()
                 .eq(AlbumPhotoEntity::getAlbumId, album.getId())
-                .orderByAsc(AlbumPhotoEntity::getSortOrder)));
+                .orderByAsc(AlbumPhotoEntity::getSortOrder));
+        if (!photos.isEmpty()) {
+            List<String> urls = photos.stream()
+                    .map(AlbumPhotoEntity::getUrl)
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .toList();
+            if (!urls.isEmpty()) {
+                Map<String, String> originalNames = new HashMap<>();
+                mediaMapper.selectList(new LambdaQueryWrapper<MediaEntity>().in(MediaEntity::getUrl, urls))
+                        .forEach(media -> {
+                            String name = safeFileName(media.getOriginalName());
+                            if (StringUtils.hasText(name)) {
+                                originalNames.putIfAbsent(media.getUrl(), name);
+                            }
+                        });
+                photos.forEach(photo -> photo.setOriginalName(originalNames.get(photo.getUrl())));
+            }
+        }
+        vo.setPhotos(photos);
         return vo;
+    }
+
+    private String safeFileName(String name) {
+        if (!StringUtils.hasText(name)) {
+            return null;
+        }
+        String normalized = name.replace('\\', '/');
+        normalized = normalized.substring(normalized.lastIndexOf('/') + 1)
+                .replaceAll("[\\p{Cntrl}]", "_")
+                .trim();
+        return StringUtils.hasText(normalized) ? normalized : null;
     }
 
     @Transactional

@@ -2,6 +2,7 @@ package cn.whaa.blog.infrastructure.persistence.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -15,6 +16,8 @@ public class AlbumPhotoEntity {
     private Long albumId;
     private String url;
     private String caption;
+    @TableField(exist = false)
+    private String originalName;
     private Integer sortOrder;
     private LocalDateTime createdAt;
 }
