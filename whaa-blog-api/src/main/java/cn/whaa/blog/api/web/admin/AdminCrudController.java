@@ -120,6 +120,16 @@ public class AdminCrudController {
         return Result.ok(albumService.save(cmd));
     }
 
+    @GetMapping("/albums")
+    public Result<List<AlbumEntity>> albums() {
+        return Result.ok(albumService.listAdmin());
+    }
+
+    @GetMapping("/albums/{id}")
+    public Result<AlbumService.AlbumDetailVO> album(@PathVariable Long id) {
+        return Result.ok(albumService.getAdminById(id));
+    }
+
     @DeleteMapping("/albums/{id}")
     public Result<Void> deleteAlbum(@PathVariable Long id) {
         albumService.delete(id);

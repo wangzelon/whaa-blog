@@ -10,6 +10,7 @@ public class PostSummaryVO {
     private Long id;
     private String slug;
     private String title;
+    private String status;
     private String description;
     private String excerpt;
     private String coverUrl;

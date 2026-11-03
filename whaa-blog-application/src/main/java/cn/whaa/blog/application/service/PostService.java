@@ -119,6 +119,7 @@ public class PostService {
     @Transactional
     public Long saveAdmin(PostSaveCommand cmd, Long authorId) {
         MarkdownService.RenderResult rendered = markdownService.render(cmd.getContentMd());
+        PostStatus targetStatus = cmd.getStatus() != null ? cmd.getStatus() : PostStatus.DRAFT;
         PostEntity entity;
         if (cmd.getId() != null) {
             entity = postMapper.selectById(cmd.getId());
@@ -137,15 +138,17 @@ public class PostService {
         entity.setExcerpt(StringUtils.hasText(cmd.getExcerpt()) ? cmd.getExcerpt() : rendered.excerptMarkdown());
         entity.setContentMd(cmd.getContentMd());
         entity.setContentHtml(rendered.html());
-        entity.setStatus(cmd.getStatus().name());
+        entity.setStatus(targetStatus.name());
         entity.setCategoryId(cmd.getCategoryId());
         entity.setCoverUrl(cmd.getCoverUrl());
         entity.setPinned(Boolean.TRUE.equals(cmd.getPinned()));
         entity.setAllowComment(cmd.getAllowComment() == null || cmd.getAllowComment());
         entity.setHideTime(Boolean.TRUE.equals(cmd.getHideTime()));
         entity.setUpdatedAt(LocalDateTime.now());
-        if (PostStatus.PUBLISHED.equals(cmd.getStatus())) {
+        if (PostStatus.PUBLISHED.equals(targetStatus)) {
             entity.setPublishedAt(cmd.getPublishedAt() != null ? cmd.getPublishedAt() : LocalDateTime.now());
+        } else {
+            entity.setPublishedAt(null);
         }
         if (entity.getId() == null) {
             postMapper.insert(entity);
@@ -206,6 +209,7 @@ public class PostService {
         vo.setId(entity.getId());
         vo.setSlug(entity.getSlug());
         vo.setTitle(entity.getTitle());
+        vo.setStatus(entity.getStatus());
         vo.setDescription(entity.getDescription());
         vo.setExcerpt(entity.getExcerpt());
         vo.setCoverUrl(entity.getCoverUrl());
@@ -238,6 +242,7 @@ public class PostService {
         vo.setPinned(summary.getPinned());
         vo.setHideTime(summary.getHideTime());
         vo.setPublishedAt(summary.getPublishedAt());
+        vo.setCategoryId(entity.getCategoryId());
         vo.setCategory(summary.getCategory());
         vo.setTags(summary.getTags());
         vo.setContentHtml(entity.getContentHtml());

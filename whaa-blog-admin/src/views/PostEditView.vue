@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Check, EditPen } from '@element-plus/icons-vue'
-import { apiGet, apiPost } from '@/api/client'
+import { apiGet, apiPost, apiPut } from '@/api/client'
 
 const route = useRoute()
 const router = useRouter()
@@ -35,24 +35,40 @@ async function load() {
     tags.value = tagRows
     const id = route.params.id
     if (id) {
-      form.value = await apiGet<any>(`/admin/posts/${id}`)
-      form.value.tagIds = (form.value.tags || []).map((tag: any) => tag.id)
+      const post = await apiGet<any>(`/admin/posts/${id}`)
+      form.value = {
+        ...form.value,
+        ...post,
+        status: post.status ?? 'DRAFT',
+        categoryId: post.categoryId ?? post.category?.id ?? null,
+        tagIds: (post.tags || []).map((tag: any) => tag.id),
+      }
     }
+  } catch {
+    ElMessage.error('文章加载失败，请刷新页面后重试')
   } finally {
     loading.value = false
   }
 }
 
-async function save() {
+async function save(status: 'DRAFT' | 'PUBLISHED') {
   if (!form.value.title.trim()) {
     ElMessage.warning('请先填写文章标题')
     return
   }
   saving.value = true
   try {
-    await apiPost('/admin/posts', form.value)
-    ElMessage.success('文章已保存')
+    const command = { ...form.value, status }
+    const id = route.params.id
+    if (id) {
+      await apiPut(`/admin/posts/${id}`, command)
+    } else {
+      await apiPost('/admin/posts', command)
+    }
+    ElMessage.success(status === 'PUBLISHED' ? '文章已发布' : '草稿已保存')
     router.push('/posts')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? `保存失败：${error.message}` : '保存失败，请稍后重试')
   } finally {
     saving.value = false
   }
@@ -86,12 +102,12 @@ onMounted(load)
           <div><h3>发布设置</h3><p>选择文章的展示方式。</p></div>
         </div>
         <el-form label-position="top" class="publish-form">
-          <el-form-item label="发布状态">
-            <el-select v-model="form.status" style="width: 100%">
-              <el-option label="保存为草稿" value="DRAFT" />
-              <el-option label="立即发布" value="PUBLISHED" />
-            </el-select>
-          </el-form-item>
+          <div class="current-status-row">
+            <span>当前状态</span>
+            <el-tag :type="form.status === 'PUBLISHED' ? 'success' : 'info'" effect="light" round>
+              {{ form.status === 'PUBLISHED' ? '已发布' : '草稿' }}
+            </el-tag>
+          </div>
           <el-form-item label="文章分类">
             <el-select v-model="form.categoryId" clearable placeholder="选择分类" style="width: 100%">
               <el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.id" />
@@ -106,7 +122,8 @@ onMounted(load)
           <div class="publish-switch-row"><span><strong>开放评论</strong><small>允许读者留言互动</small></span><el-switch v-model="form.allowComment" /></div>
         </el-form>
         <div class="publish-actions">
-          <el-button type="primary" :loading="saving" :icon="Check" @click="save">保存文章</el-button>
+          <el-button :disabled="saving" @click="save('DRAFT')">{{ form.status === 'PUBLISHED' ? '转为草稿' : '保存草稿' }}</el-button>
+          <el-button type="primary" :loading="saving" :icon="Check" @click="save('PUBLISHED')">{{ form.status === 'PUBLISHED' ? '保存并发布' : '发布文章' }}</el-button>
           <el-button :icon="ArrowLeft" @click="router.push('/posts')">返回列表</el-button>
         </div>
       </el-card>
@@ -129,6 +146,7 @@ onMounted(load)
 .editor-word-count { color: #9aa5b3; font-size: 11px; text-align: right; }
 .compact-heading { margin-bottom: 17px; }
 .publish-form :deep(.el-form-item) { margin-bottom: 17px; }
+.current-status-row { display: flex; align-items: center; justify-content: space-between; margin: 0 0 18px; color: #4b5b70; font-size: 12px; font-weight: 650; }
 .publish-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid #eff2f6; }
 .publish-switch-row span { display: flex; flex-direction: column; gap: 4px; }
 .publish-switch-row strong { color: #3b4b60; font-size: 12px; font-weight: 600; }

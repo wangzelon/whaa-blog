@@ -30,11 +30,28 @@ public class AlbumService {
                 .orderByDesc(AlbumEntity::getCreatedAt));
     }
 
+    public List<AlbumEntity> listAdmin() {
+        return albumMapper.selectList(new LambdaQueryWrapper<AlbumEntity>()
+                .orderByDesc(AlbumEntity::getCreatedAt));
+    }
+
     public AlbumDetailVO getBySlug(String slug) {
         AlbumEntity album = albumMapper.selectOne(new LambdaQueryWrapper<AlbumEntity>().eq(AlbumEntity::getSlug, slug).eq(AlbumEntity::getVisible, true));
         if (album == null) {
             throw new BizException(ResultCode.NOT_FOUND);
         }
+        return toDetail(album);
+    }
+
+    public AlbumDetailVO getAdminById(Long id) {
+        AlbumEntity album = albumMapper.selectById(id);
+        if (album == null) {
+            throw new BizException(ResultCode.NOT_FOUND);
+        }
+        return toDetail(album);
+    }
+
+    private AlbumDetailVO toDetail(AlbumEntity album) {
         AlbumDetailVO vo = new AlbumDetailVO();
         vo.setAlbum(album);
         vo.setPhotos(albumPhotoMapper.selectList(new LambdaQueryWrapper<AlbumPhotoEntity>()
@@ -81,7 +98,9 @@ public class AlbumService {
         return album.getId();
     }
 
+    @Transactional
     public void delete(Long id) {
+        albumPhotoMapper.delete(new LambdaQueryWrapper<AlbumPhotoEntity>().eq(AlbumPhotoEntity::getAlbumId, id));
         albumMapper.deleteById(id);
     }
 

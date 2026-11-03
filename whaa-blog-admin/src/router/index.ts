@@ -21,6 +21,7 @@ const router = createRouter({
         { path: 'categories', component: () => import('@/views/CategoriesView.vue') },
         { path: 'tags', component: () => import('@/views/TagsView.vue') },
         { path: 'links', component: () => import('@/views/LinksView.vue') },
+        { path: 'albums', component: () => import('@/views/AlbumsAdminView.vue') },
         { path: 'projects', component: () => import('@/views/ProjectsView.vue') },
         { path: 'timeline', component: () => import('@/views/TimelineView.vue') },
         { path: 'media', component: () => import('@/views/MediaView.vue') },

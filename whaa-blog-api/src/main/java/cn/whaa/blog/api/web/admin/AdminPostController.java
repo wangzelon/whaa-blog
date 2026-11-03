@@ -36,6 +36,13 @@ public class AdminPostController {
         return Result.ok(postService.saveAdmin(cmd, authorId));
     }
 
+    @PutMapping("/{id}")
+    public Result<Long> update(@PathVariable Long id, @RequestBody PostSaveCommand cmd, Authentication authentication) {
+        cmd.setId(id);
+        Long authorId = Long.parseLong(authentication.getName());
+        return Result.ok(postService.saveAdmin(cmd, authorId));
+    }
+
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         postService.deleteAdmin(id);

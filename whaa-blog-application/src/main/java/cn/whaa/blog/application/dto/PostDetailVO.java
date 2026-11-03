@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class PostDetailVO extends PostSummaryVO {
+    private Long categoryId;
     private String contentHtml;
     private String contentMd;
     private Integer viewCount;

@@ -20,6 +20,7 @@
 | GET | `/api/v1/projects` | 项目列表 |
 | GET | `/api/v1/links?random=true` | 友链 |
 | GET | `/api/v1/albums` | 相册 |
+| GET | `/api/v1/albums/{slug}` | 相册详情和照片 |
 | GET | `/api/v1/timeline/site` | 站点编年史 |
 | GET | `/api/v1/site/config` | 公开站点配置 |
 | GET/POST | `/api/v1/comments` | 评论列表 / 提交 |
@@ -33,6 +34,8 @@
 | POST | `/api/v1/auth/login` | 登录 |
 | POST | `/api/v1/auth/refresh` | 刷新 Token |
 | * | `/api/v1/admin/posts` | 文章 CRUD |
+| GET/POST | `/api/v1/admin/albums` | 相册列表 / 创建或更新相册（含照片 URL 与说明） |
+| GET/DELETE | `/api/v1/admin/albums/{id}` | 相册详情 / 删除相册 |
 | * | `/api/v1/admin/*` | 分类、标签、页面、友链、项目、相册、编年史、评论审核、媒体、站点配置 |
 
 详细字段见 Swagger UI。
