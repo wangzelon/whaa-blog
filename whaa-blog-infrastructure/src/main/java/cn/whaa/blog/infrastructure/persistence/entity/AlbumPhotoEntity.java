@@ -18,6 +18,8 @@ public class AlbumPhotoEntity {
     private String caption;
     @TableField(exist = false)
     private String originalName;
+    @TableField(exist = false)
+    private String mimeType;
     private Integer sortOrder;
     private LocalDateTime createdAt;
 }

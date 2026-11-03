@@ -5,20 +5,25 @@ import Viewer from 'viewerjs'
 import 'viewerjs/dist/viewer.css'
 import { getData } from '@/api/client'
 
-interface AlbumPhoto {
+interface AlbumMedia {
   id: number
   url: string
   caption?: string
   originalName?: string
+  mimeType?: string
 }
 
 const route = useRoute()
-const detail = ref<{ album: any; photos: AlbumPhoto[] }>()
+const detail = ref<{ album: any; photos: AlbumMedia[] }>()
 const photoGallery = ref<HTMLElement | null>(null)
 let viewer: Viewer | null = null
 
-function photoName(photo: AlbumPhoto, index: number) {
-  return photo.originalName?.trim() || photo.caption?.trim() || `照片 ${String(index + 1).padStart(2, '0')}`
+function mediaName(photo: AlbumMedia, index: number) {
+  return photo.originalName?.trim() || photo.caption?.trim() || `媒体 ${String(index + 1).padStart(2, '0')}`
+}
+
+function isVideo(photo: AlbumMedia) {
+  return photo.mimeType?.startsWith('video/') || /\.(mp4|webm)(?:[?#]|$)/i.test(`${photo.originalName || ''} ${photo.url}`)
 }
 
 onMounted(async () => {
@@ -51,18 +56,27 @@ onBeforeUnmount(() => viewer?.destroy())
 <template>
   <section v-if="detail">
     <header class="album-heading">
-      <p class="album-eyebrow">PHOTO ALBUM <span>{{ detail.photos.length }} 张照片</span></p>
+      <p class="album-eyebrow">PHOTO ALBUM <span>{{ detail.photos.length }} 个媒体文件</span></p>
       <h1>{{ detail.album.title }}</h1>
       <p v-if="detail.album.description" class="album-description">{{ detail.album.description }}</p>
     </header>
     <div ref="photoGallery" class="photos">
       <figure v-for="(photo, index) in detail.photos" :key="photo.id" class="photo-card">
         <div class="photo-frame">
-          <img :src="photo.url" :alt="photoName(photo, index)" :title="`${photoName(photo, index)} · 点击放大查看`" loading="lazy" />
-          <span class="photo-index" :aria-label="`第 ${index + 1} 张照片`">{{ String(index + 1).padStart(2, '0') }}</span>
+          <video
+            v-if="isVideo(photo)"
+            class="album-video"
+            :src="photo.url"
+            :aria-label="mediaName(photo, index)"
+            controls
+            preload="metadata"
+            playsinline
+          />
+          <img v-else :src="photo.url" :alt="mediaName(photo, index)" :title="`${mediaName(photo, index)} · 点击放大查看`" loading="lazy" />
+          <span class="photo-index" :aria-label="`第 ${index + 1} 个媒体文件`">{{ String(index + 1).padStart(2, '0') }}</span>
         </div>
         <figcaption class="photo-info">
-          <strong class="photo-name" :title="photoName(photo, index)">{{ photoName(photo, index) }}</strong>
+          <strong class="photo-name" :title="mediaName(photo, index)">{{ mediaName(photo, index) }}</strong>
           <span v-if="photo.caption && photo.originalName && photo.caption !== photo.originalName" class="photo-caption">{{ photo.caption }}</span>
         </figcaption>
       </figure>
@@ -91,6 +105,7 @@ onBeforeUnmount(() => viewer?.destroy())
   object-fit: cover;
   transition: transform .3s ease;
 }
+.photo-frame .album-video { display: block; width: 100%; height: 100%; object-fit: contain; background: #101318; }
 .photo-card:hover .photo-frame img { transform: scale(1.025); }
 .photo-index { position: absolute; top: 9px; left: 9px; min-width: 32px; padding: 5px 7px; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-align: center; border: 1px solid rgba(255,255,255,.35); border-radius: 7px; background: rgba(20, 31, 46, .68); backdrop-filter: blur(8px); }
 .photo-info { display: flex; flex-direction: column; gap: 5px; padding: 11px 3px 3px; }

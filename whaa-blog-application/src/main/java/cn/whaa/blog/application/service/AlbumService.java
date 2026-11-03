@@ -69,15 +69,18 @@ public class AlbumService {
                     .distinct()
                     .toList();
             if (!urls.isEmpty()) {
-                Map<String, String> originalNames = new HashMap<>();
+                Map<String, MediaEntity> mediaByUrl = new HashMap<>();
                 mediaMapper.selectList(new LambdaQueryWrapper<MediaEntity>().in(MediaEntity::getUrl, urls))
                         .forEach(media -> {
-                            String name = safeFileName(media.getOriginalName());
-                            if (StringUtils.hasText(name)) {
-                                originalNames.putIfAbsent(media.getUrl(), name);
-                            }
+                            mediaByUrl.putIfAbsent(media.getUrl(), media);
                         });
-                photos.forEach(photo -> photo.setOriginalName(originalNames.get(photo.getUrl())));
+                photos.forEach(photo -> {
+                    MediaEntity media = mediaByUrl.get(photo.getUrl());
+                    if (media != null) {
+                        photo.setOriginalName(safeFileName(media.getOriginalName()));
+                        photo.setMimeType(media.getMimeType());
+                    }
+                });
             }
         }
         vo.setPhotos(photos);

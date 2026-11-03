@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 
 @Slf4j
@@ -32,7 +33,12 @@ import java.util.UUID;
 public class MinioStorageService {
 
     private static final Set<String> ALLOWED_MIME = Set.of(
-            "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"
+            "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+            "video/mp4", "video/webm"
+    );
+    private static final Map<String, String> VIDEO_MIME_BY_EXTENSION = Map.of(
+            ".mp4", "video/mp4",
+            ".webm", "video/webm"
     );
     private static final long MAX_CHAT_FILE_SIZE = 20L * 1024 * 1024;
     private static final Map<String, String> CHAT_MIME_BY_EXTENSION = Map.ofEntries(
@@ -65,6 +71,10 @@ public class MinioStorageService {
                 .endpoint(properties.getEndpoint())
                 .credentials(properties.getAccessKey(), properties.getSecretKey())
                 .build();
+        client.setTimeout(
+                TimeUnit.SECONDS.toMillis(30),
+                TimeUnit.MINUTES.toMillis(15),
+                TimeUnit.MINUTES.toMillis(15));
         try {
             ensureBucket(properties.getBucket());
             ensureBucket(properties.getChatBucket());
@@ -80,15 +90,18 @@ public class MinioStorageService {
         }
     }
 
-    public UploadResult upload(MultipartFile file) {
+    public UploadResult upload(MultipartFile file, String contentType) {
         if (file == null || file.isEmpty()) {
             throw new BizException(ResultCode.BAD_REQUEST, "file is empty");
         }
-        String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_MIME.contains(contentType)) {
             throw new BizException(ResultCode.BAD_REQUEST, "unsupported file type");
         }
-        String ext = extractExt(file.getOriginalFilename());
+        String ext = extractExt(file.getOriginalFilename()).toLowerCase(Locale.ROOT);
+        if (contentType.startsWith("video/")
+                && (!contentType.equals(VIDEO_MIME_BY_EXTENSION.get(ext)) || !hasExpectedVideoSignature(file, ext))) {
+            throw new BizException(ResultCode.BAD_REQUEST, "unsupported or invalid video file");
+        }
         String objectKey = "uploads/" + UUID.randomUUID() + ext;
         try (InputStream stream = file.getInputStream()) {
             client.putObject(PutObjectArgs.builder()
@@ -204,6 +217,23 @@ public class MinioStorageService {
                     if (value == 0) return false;
                 }
                 return header.length > 0;
+            }
+            return false;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean hasExpectedVideoSignature(MultipartFile file, String extension) {
+        try (InputStream stream = file.getInputStream()) {
+            byte[] header = stream.readNBytes(16);
+            if (extension.equals(".mp4")) {
+                return header.length >= 8 && (asciiAt(header, 4, "ftyp") || asciiAt(header, 12, "ftyp"));
+            }
+            if (extension.equals(".webm")) {
+                return header.length >= 4 && unsigned(header[0]) == 0x1a
+                        && unsigned(header[1]) == 0x45 && unsigned(header[2]) == 0xdf
+                        && unsigned(header[3]) == 0xa3;
             }
             return false;
         } catch (IOException e) {

@@ -5,9 +5,13 @@ import { Picture, UploadFilled } from '@element-plus/icons-vue'
 import { apiGet } from '@/api/client'
 import client from '@/api/client'
 
+const MAX_IMAGE_SIZE_BYTES = 20 * 1024 * 1024
+const MAX_VIDEO_SIZE_BYTES = 500 * 1024 * 1024
+const allowedVideoTypes = new Set(['video/mp4', 'video/webm'])
 const rows = ref<any[]>([])
 const loading = ref(false)
 const uploading = ref(false)
+const uploadPercent = ref(0)
 
 async function load() {
   loading.value = true
@@ -23,17 +27,38 @@ async function onUpload(option: any) {
   const fd = new FormData()
   fd.append('file', option.file)
   uploading.value = true
+  uploadPercent.value = 0
   try {
-    await client.post('/admin/media/upload', fd)
-    ElMessage.success('图片已上传')
+    await client.post('/admin/media/upload', fd, {
+      timeout: 0,
+      onUploadProgress: (event) => {
+        if (event.total) uploadPercent.value = Math.round((event.loaded / event.total) * 100)
+      },
+    })
+    ElMessage.success('媒体已上传')
     await load()
     option.onSuccess?.({})
   } catch (error) {
     option.onError?.(error)
-    ElMessage.error('上传失败，请稍后重试')
+    ElMessage.error(error instanceof Error ? `上传失败：${error.message}` : '上传失败，请稍后重试')
   } finally {
     uploading.value = false
+    uploadPercent.value = 0
   }
+}
+
+function beforeMediaUpload(file: File) {
+  const isVideo = file.type.startsWith('video/') || /\.(mp4|webm)$/i.test(file.name)
+  if (isVideo && file.type && file.type !== 'application/octet-stream' && !allowedVideoTypes.has(file.type)) {
+    ElMessage.error('目前支持 MP4 和 WebM 视频')
+    return false
+  }
+  const maxSize = isVideo ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES
+  if (file.size > maxSize) {
+    ElMessage.error(isVideo ? '视频不能超过 500 MB' : '图片不能超过 20 MB')
+    return false
+  }
+  return true
 }
 
 async function copyUrl(url: string) {
@@ -53,12 +78,12 @@ onMounted(load)
     <el-card class="upload-panel" shadow="never">
       <div class="upload-copy">
         <span class="upload-icon"><el-icon><Picture /></el-icon></span>
-        <div><h3>上传图片</h3><p>将图片添加到媒体库，供文章和页面使用。</p></div>
+        <div><h3>上传图片或视频</h3><p>图片最大 20 MB，MP4 / WebM 视频最大 500 MB。</p></div>
       </div>
-      <el-upload class="media-uploader" drag :http-request="onUpload" :show-file-list="false" accept="image/*">
+      <el-upload class="media-uploader" drag :http-request="onUpload" :before-upload="beforeMediaUpload" :show-file-list="false" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,video/mp4,video/webm,.mp4,.webm">
         <div class="upload-drop-content">
           <span class="drop-icon"><el-icon><UploadFilled /></el-icon></span>
-          <strong>{{ uploading ? '正在上传…' : '拖放图片到这里' }}</strong>
+          <strong>{{ uploading ? `正在上传 ${uploadPercent}%…` : '拖放图片或视频到这里' }}</strong>
           <span>或点击选择本地文件</span>
         </div>
       </el-upload>
@@ -73,7 +98,8 @@ onMounted(load)
         <el-table-column label="文件" min-width="260">
           <template #default="{ row }">
             <div class="media-file-cell">
-              <el-image v-if="row.url" class="media-thumb" :src="row.url" fit="cover" :preview-src-list="[row.url]" preview-teleported />
+              <video v-if="row.mimeType?.startsWith('video/')" class="media-video-preview" :src="row.url" controls preload="metadata" playsinline />
+              <el-image v-else-if="row.url" class="media-thumb" :src="row.url" fit="cover" :preview-src-list="[row.url]" preview-teleported />
               <span v-else class="media-thumb media-thumb-empty"><el-icon><Picture /></el-icon></span>
               <div><strong>{{ row.originalName }}</strong><span>{{ row.url }}</span></div>
             </div>
@@ -83,7 +109,7 @@ onMounted(load)
         <el-table-column label="操作" width="100" align="right">
           <template #default="{ row }"><el-button link type="primary" @click="copyUrl(row.url)">复制链接</el-button></template>
         </el-table-column>
-        <template #empty><el-empty description="媒体库还是空的，上传一张图片开始使用" :image-size="82" /></template>
+        <template #empty><el-empty description="媒体库还是空的，上传图片或视频开始使用" :image-size="82" /></template>
       </el-table>
     </el-card>
   </div>
@@ -114,6 +140,7 @@ onMounted(load)
 .table-title-block div span { color: #96a1af; font-size: 11px; }
 .media-file-cell { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .media-thumb { width: 42px; height: 42px; flex: none; border-radius: 9px; background: #f1f4f8; }
+.media-video-preview { width: 164px; height: 92px; flex: none; border-radius: 9px; background: #111; }
 .media-thumb-empty { display: grid; place-items: center; color: #9eacbd; font-size: 16px; }
 .media-file-cell div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .media-file-cell strong, .media-file-cell div span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

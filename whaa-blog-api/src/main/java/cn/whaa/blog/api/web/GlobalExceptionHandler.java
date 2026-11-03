@@ -31,7 +31,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     @ResponseStatus(HttpStatus.OK)
     public Result<Void> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
-        return Result.fail(ResultCode.BAD_REQUEST.getCode(), "each attachment must be 20 MB or smaller");
+        return Result.fail(ResultCode.BAD_REQUEST.getCode(), "uploaded file exceeds the allowed size limit");
     }
 
     @ExceptionHandler(Exception.class)

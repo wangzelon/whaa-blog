@@ -70,7 +70,7 @@ const pageInfo: Record<string, { title: string; description: string; section: st
   '/albums': { title: '相册管理', description: '创建相册、整理照片，并控制前台展示。', section: '站点运营' },
   '/projects': { title: '项目展示', description: '管理展示在站点上的项目。', section: '站点运营' },
   '/timeline': { title: '站点编年史', description: '记录站点的重要时间节点。', section: '站点运营' },
-  '/media': { title: '媒体库', description: '上传并整理博客使用的图片资源。', section: '站点运营' },
+  '/media': { title: '媒体库', description: '上传并整理博客使用的图片与视频。', section: '站点运营' },
   '/settings': { title: '站点配置', description: '编辑博客站点的 JSON 配置。', section: '偏好设置' },
 }
 

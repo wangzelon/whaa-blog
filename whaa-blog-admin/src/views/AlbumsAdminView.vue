@@ -4,9 +4,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, ArrowUp, Collection, Delete, EditPen, Picture, Plus, Upload } from '@element-plus/icons-vue'
 import client, { apiDelete, apiGet, apiPost, type Result } from '@/api/client'
 
-interface AlbumPhoto {
+interface AlbumMedia {
   url: string
   caption: string
+  mimeType?: string
+  originalName?: string
 }
 
 interface Album {
@@ -24,7 +26,12 @@ interface MediaItem {
   url: string
   originalName: string
   mimeType: string
+  sizeBytes?: number
 }
+
+const MAX_IMAGE_SIZE_BYTES = 20 * 1024 * 1024
+const MAX_VIDEO_SIZE_BYTES = 500 * 1024 * 1024
+const allowedVideoTypes = new Set(['video/mp4', 'video/webm'])
 
 function emptyForm() {
   return {
@@ -34,7 +41,7 @@ function emptyForm() {
     description: '',
     coverUrl: '',
     visible: true,
-    photos: [] as AlbumPhoto[],
+    photos: [] as AlbumMedia[],
   }
 }
 
@@ -42,6 +49,7 @@ const albums = ref<Album[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const uploading = ref(false)
+const uploadPercent = ref(0)
 const editorVisible = ref(false)
 const mediaPickerVisible = ref(false)
 const mediaLoading = ref(false)
@@ -49,6 +57,29 @@ const mediaItems = ref<MediaItem[]>([])
 const selectedMediaIds = ref<number[]>([])
 const form = ref(emptyForm())
 const editorTitle = computed(() => form.value.id ? '编辑相册' : '新建相册')
+const imagePreviewUrls = computed(() => form.value.photos.filter((item) => !isVideoMedia(item)).map((item) => item.url))
+
+function isVideoMedia(item: Pick<AlbumMedia, 'url' | 'mimeType' | 'originalName'>) {
+  return item.mimeType?.startsWith('video/') || /\.(mp4|webm)(?:[?#]|$)/i.test(`${item.originalName || ''} ${item.url}`)
+}
+
+function firstImageUrl() {
+  return form.value.photos.find((item) => !isVideoMedia(item))?.url || ''
+}
+
+function beforeMediaUpload(file: File) {
+  const isVideo = file.type.startsWith('video/') || /\.(mp4|webm)$/i.test(file.name)
+  if (isVideo && file.type && file.type !== 'application/octet-stream' && !allowedVideoTypes.has(file.type)) {
+    ElMessage.error('目前支持 MP4 和 WebM 视频')
+    return false
+  }
+  const maxSize = isVideo ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES
+  if (file.size > maxSize) {
+    ElMessage.error(isVideo ? '视频不能超过 500 MB' : '图片不能超过 20 MB')
+    return false
+  }
+  return true
+}
 
 async function loadAlbums() {
   loading.value = true
@@ -69,7 +100,7 @@ function openCreate() {
 async function openEdit(id: number) {
   loading.value = true
   try {
-    const detail = await apiGet<{ album: Album; photos: Array<{ url: string; caption?: string }> }>(`/admin/albums/${id}`)
+    const detail = await apiGet<{ album: Album; photos: Array<{ url: string; caption?: string; mimeType?: string; originalName?: string }> }>(`/admin/albums/${id}`)
     form.value = {
       id: detail.album.id,
       title: detail.album.title || '',
@@ -77,7 +108,12 @@ async function openEdit(id: number) {
       description: detail.album.description || '',
       coverUrl: detail.album.coverUrl || '',
       visible: detail.album.visible !== false,
-      photos: (detail.photos || []).map((photo) => ({ url: photo.url, caption: photo.caption || '' })),
+      photos: (detail.photos || []).map((photo) => ({
+        url: photo.url,
+        caption: photo.caption || '',
+        mimeType: photo.mimeType,
+        originalName: photo.originalName,
+      })),
     }
     editorVisible.value = true
   } catch {
@@ -97,13 +133,13 @@ async function saveAlbum() {
     return
   }
   if (!form.value.photos.length) {
-    ElMessage.warning('请至少添加一张照片')
+    ElMessage.warning('请至少添加一张图片或视频')
     return
   }
 
   saving.value = true
   try {
-    const coverUrl = form.value.coverUrl.trim() || form.value.photos[0].url
+    const coverUrl = form.value.coverUrl.trim() || firstImageUrl()
     await apiPost('/admin/albums', {
       ...form.value,
       title: form.value.title.trim(),
@@ -123,7 +159,7 @@ async function saveAlbum() {
 
 async function removeAlbum(album: Album) {
   try {
-    await ElMessageBox.confirm(`确认删除相册“${album.title}”？其中的照片关联也会移除。`, '删除相册', {
+    await ElMessageBox.confirm(`确认删除相册“${album.title}”？其中的媒体关联也会移除。`, '删除相册', {
       confirmButtonText: '删除相册',
       cancelButtonText: '取消',
       type: 'warning',
@@ -142,7 +178,7 @@ async function openMediaPicker() {
   selectedMediaIds.value = []
   try {
     const page = await apiGet<{ records: MediaItem[] }>('/admin/media', { page: 1, size: 100 })
-    mediaItems.value = (page.records || []).filter((item) => item.mimeType?.startsWith('image/'))
+    mediaItems.value = (page.records || []).filter((item) => item.mimeType?.startsWith('image/') || item.mimeType?.startsWith('video/'))
   } catch {
     ElMessage.error('媒体库加载失败，请稍后重试')
   } finally {
@@ -153,11 +189,11 @@ async function openMediaPicker() {
 function addPhotos(items: MediaItem[]) {
   for (const item of items) {
     if (!form.value.photos.some((photo) => photo.url === item.url)) {
-      form.value.photos.push({ url: item.url, caption: '' })
+      form.value.photos.push({ url: item.url, caption: '', mimeType: item.mimeType, originalName: item.originalName })
     }
   }
   if (!form.value.coverUrl && form.value.photos.length) {
-    form.value.coverUrl = form.value.photos[0].url
+    form.value.coverUrl = firstImageUrl()
   }
 }
 
@@ -167,27 +203,34 @@ function addSelectedMedia() {
   mediaPickerVisible.value = false
 }
 
-async function uploadPhoto(option: any) {
+async function uploadMedia(option: any) {
   const data = new FormData()
   data.append('file', option.file)
   uploading.value = true
+  uploadPercent.value = 0
   try {
-    const response = await client.post<Result<MediaItem>>('/admin/media/upload', data)
+    const response = await client.post<Result<MediaItem>>('/admin/media/upload', data, {
+      timeout: 0,
+      onUploadProgress: (event) => {
+        if (event.total) uploadPercent.value = Math.round((event.loaded / event.total) * 100)
+      },
+    })
     addPhotos([response.data.data])
-    ElMessage.success('图片已上传并加入当前相册')
+    ElMessage.success('媒体已上传并加入当前相册')
     option.onSuccess?.(response.data.data)
   } catch (error) {
-    ElMessage.error(error instanceof Error ? `图片上传失败：${error.message}` : '图片上传失败，请稍后重试')
+    ElMessage.error(error instanceof Error ? `媒体上传失败：${error.message}` : '媒体上传失败，请稍后重试')
     option.onError?.(error)
   } finally {
     uploading.value = false
+    uploadPercent.value = 0
   }
 }
 
 function removePhoto(index: number) {
   const [removed] = form.value.photos.splice(index, 1)
   if (removed?.url === form.value.coverUrl) {
-    form.value.coverUrl = form.value.photos[0]?.url || ''
+    form.value.coverUrl = firstImageUrl()
   }
 }
 
@@ -274,34 +317,36 @@ onMounted(loadAlbums)
         </el-form>
 
         <div class="photos-heading">
-          <div><strong>相册照片</strong><span>{{ form.photos.length }} 张，顺序即前台展示顺序</span></div>
+          <div><strong>相册媒体</strong><span>{{ form.photos.length }} 个文件，顺序即前台展示顺序</span></div>
           <div class="photo-tools">
             <el-button :icon="Picture" @click="openMediaPicker">从媒体库选择</el-button>
-            <el-upload accept="image/*" :show-file-list="false" :http-request="uploadPhoto">
-              <el-button type="primary" plain :icon="Upload" :loading="uploading">上传图片</el-button>
+            <el-upload accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,video/mp4,video/webm,.mp4,.webm" :before-upload="beforeMediaUpload" :show-file-list="false" :http-request="uploadMedia">
+              <el-button type="primary" plain :icon="Upload" :loading="uploading">{{ uploading ? `上传中 ${uploadPercent}%` : '上传图片或视频' }}</el-button>
             </el-upload>
           </div>
         </div>
 
         <div v-if="form.photos.length" class="photo-list">
           <article v-for="(photo, index) in form.photos" :key="`${photo.url}-${index}`" class="photo-row">
-            <el-image class="photo-preview" :src="photo.url" fit="cover" :preview-src-list="form.photos.map((item) => item.url)" :initial-index="index" preview-teleported />
+            <video v-if="isVideoMedia(photo)" class="photo-video-preview" :src="photo.url" controls preload="metadata" playsinline />
+            <el-image v-else class="photo-preview" :src="photo.url" fit="cover" :preview-src-list="imagePreviewUrls" :initial-index="Math.max(0, imagePreviewUrls.indexOf(photo.url))" preview-teleported />
             <div class="photo-fields">
-              <el-input v-model="photo.caption" placeholder="照片说明（可选）" maxlength="200" />
+              <el-input v-model="photo.caption" placeholder="图片或视频说明（可选）" maxlength="200" />
               <div class="photo-meta">
-                <el-tag v-if="form.coverUrl === photo.url" type="warning" effect="plain">封面</el-tag>
+                <el-tag v-if="isVideoMedia(photo)" effect="plain">视频</el-tag>
+                <el-tag v-else-if="form.coverUrl === photo.url" type="warning" effect="plain">封面</el-tag>
                 <el-button v-else link type="primary" @click="form.coverUrl = photo.url">设为封面</el-button>
-                <span class="photo-url" :title="photo.url">{{ photo.url }}</span>
+                <span class="photo-url" :title="photo.originalName || photo.url">{{ photo.originalName || photo.url }}</span>
               </div>
             </div>
             <div class="photo-actions">
-              <el-button link :icon="ArrowUp" :disabled="index === 0" aria-label="上移照片" @click="movePhoto(index, -1)" />
-              <el-button link :icon="ArrowDown" :disabled="index === form.photos.length - 1" aria-label="下移照片" @click="movePhoto(index, 1)" />
-              <el-button link type="danger" :icon="Delete" aria-label="移除照片" @click="removePhoto(index)" />
+              <el-button link :icon="ArrowUp" :disabled="index === 0" aria-label="上移媒体" @click="movePhoto(index, -1)" />
+              <el-button link :icon="ArrowDown" :disabled="index === form.photos.length - 1" aria-label="下移媒体" @click="movePhoto(index, 1)" />
+              <el-button link type="danger" :icon="Delete" aria-label="移除媒体" @click="removePhoto(index)" />
             </div>
           </article>
         </div>
-        <el-empty v-else description="还没有照片，可从媒体库选择或直接上传" :image-size="72" />
+        <el-empty v-else description="还没有媒体，可从媒体库选择或直接上传" :image-size="72" />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -311,21 +356,22 @@ onMounted(loadAlbums)
       </template>
     </el-dialog>
 
-    <el-dialog v-model="mediaPickerVisible" title="从媒体库选择图片" width="min(780px, 94vw)" append-to-body>
+    <el-dialog v-model="mediaPickerVisible" title="从媒体库选择媒体" width="min(780px, 94vw)" append-to-body>
       <div v-loading="mediaLoading" class="media-picker">
         <el-checkbox-group v-model="selectedMediaIds" class="media-grid">
-          <label v-for="item in mediaItems" :key="item.id" class="media-choice">
+          <div v-for="item in mediaItems" :key="item.id" class="media-choice">
             <el-checkbox :value="item.id" :label="item.id" />
-            <el-image :src="item.url" fit="cover" :preview-src-list="[item.url]" preview-teleported />
+            <video v-if="item.mimeType.startsWith('video/')" :src="item.url" controls preload="metadata" playsinline />
+            <el-image v-else :src="item.url" fit="cover" :preview-src-list="[item.url]" preview-teleported />
             <span :title="item.originalName">{{ item.originalName }}</span>
-          </label>
+          </div>
         </el-checkbox-group>
-        <el-empty v-if="!mediaLoading && !mediaItems.length" description="媒体库还没有图片，请先上传图片" :image-size="72" />
+        <el-empty v-if="!mediaLoading && !mediaItems.length" description="媒体库还没有文件，请先上传图片或视频" :image-size="72" />
       </div>
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="mediaPickerVisible = false">取消</el-button>
-          <el-button type="primary" @click="addSelectedMedia">添加选中图片</el-button>
+          <el-button type="primary" @click="addSelectedMedia">添加选中媒体</el-button>
         </div>
       </template>
     </el-dialog>
@@ -366,6 +412,7 @@ onMounted(loadAlbums)
 .photo-list { display: flex; flex-direction: column; gap: 9px; padding: 0 8px 8px; }
 .photo-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 9px; border: 1px solid #e9edf3; border-radius: 11px; background: #fff; }
 .photo-preview { width: 88px; height: 68px; border-radius: 8px; background: #f1f4f8; }
+.photo-video-preview { width: 136px; height: 88px; border-radius: 8px; background: #111; }
 .photo-fields { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
 .photo-meta { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .photo-url { overflow: hidden; color: #9aa5b2; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
@@ -373,16 +420,16 @@ onMounted(loadAlbums)
 .dialog-footer { display: flex; justify-content: flex-end; gap: 8px; }
 .media-picker { min-height: 180px; max-height: 58vh; overflow-y: auto; }
 .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-.media-choice { position: relative; display: flex; flex-direction: column; gap: 7px; min-width: 0; padding: 8px; border: 1px solid #e8edf3; border-radius: 10px; cursor: pointer; }
+.media-choice { position: relative; display: flex; flex-direction: column; gap: 7px; min-width: 0; padding: 8px; border: 1px solid #e8edf3; border-radius: 10px; }
 .media-choice :deep(.el-checkbox) { position: absolute; z-index: 1; top: 12px; left: 12px; margin: 0; padding: 3px; border-radius: 5px; background: rgba(255,255,255,.92); }
-.media-choice :deep(.el-image) { width: 100%; height: 108px; border-radius: 7px; background: #f1f4f8; }
+.media-choice :deep(.el-image), .media-choice video { width: 100%; height: 108px; border-radius: 7px; background: #111; object-fit: cover; }
 .media-choice > span { overflow: hidden; color: #6f7f92; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 700px) {
   .module-card :deep(.el-card__body) { padding: 0 12px 12px; }
   .form-grid { grid-template-columns: 1fr; gap: 0; }
   .photos-heading { align-items: flex-start; flex-direction: column; }
-  .photo-row { grid-template-columns: 64px minmax(0, 1fr); gap: 9px; }
-  .photo-preview { width: 64px; height: 64px; }
+  .photo-row { grid-template-columns: minmax(88px, 28vw) minmax(0, 1fr); gap: 9px; }
+  .photo-preview, .photo-video-preview { width: 100%; height: 64px; }
   .photo-actions { grid-column: 2; justify-content: flex-end; }
 }
 </style>
